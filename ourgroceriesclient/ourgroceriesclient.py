@@ -5,6 +5,7 @@ import requests
 import json
 import sys
 import re
+from fuzzywuzzy import fuzz
 
 class OurGroceriesClient:
     """Client to talk to Our Groceries API"""
@@ -88,7 +89,7 @@ class OurGroceriesClient:
 
     def add_item_to_list_by_name(self, listName, item, count = None):
         """ Adds an item to a list, looking up the list Id by name """
-        return self.add_item_to_list(self.cached_list_ids[listName], item, count)
+        return self.add_item_to_list(self.get_list_id_from_name(listName), item, count)
 
     def delete_all_crossed_off_items(self, listId):
         """ Deletes all the crossed off items from the list"""
@@ -100,7 +101,19 @@ class OurGroceriesClient:
 
     def delete_item_from_list_by_name(self, listName, itemId):
         """ Delete an item from a list, taking the list name. """
-        return self.exec_command('deleteItem',  {'listId': self.cached_list_ids[listName], 'itemId' : itemId})
+        return self.exec_command('deleteItem',  {'listId': self.get_list_id_from_name(listName), 'itemId' : itemId})
+
+    def get_list_id_from_name(self, listName):
+        """ Does a fuzzy search to find the closest list from the cache that we can"""
+        fuzzyMatch = -1
+        retVal = None
+        for name in self.cached_list_ids:
+            ratio = fuzz.ratio(name, listName)
+            if ratio > fuzzyMatch:
+                fuzzyMatch = ratio
+                retVal = self.cached_list_ids[name]
+        
+        return retVal
 
     def exec_command(self, command, args = None):
         """ Posts a named command. """
