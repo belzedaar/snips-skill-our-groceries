@@ -26,8 +26,7 @@ class Skill_OurGroceries:
         except :
             config = None
         username = None
-        password = None
-        print(config)
+        password = None        
         if config and config.get('secret', None) is not None:
             if config.get('secret').get('username', None) is not None:
                 username = config.get('secret').get('username')
@@ -73,8 +72,8 @@ class Skill_OurGroceries:
     def callback(self, hermes, intent_message):
         print("[OurGroceries] Received")
         intent_name = intent_message.intent.intent_name
-        intent_name = re.sub(r'^\w+:', '', intent_name)
-        print(intent_name)
+        # strip off any user specific prefix
+        intent_name = re.sub(r'^\w+:', '', intent_name)        
         if intent_name == 'addToList':
             self.queue.put(self.add_to_list(hermes, intent_message))
         
@@ -87,10 +86,10 @@ class Skill_OurGroceries:
 
         # if the list name doesn't already end in "list" add it for the purposes
         # of speaking it
-        if re.match(' list$', list_name, re.I) == False:
+        if not re.search(' list$', list_name, re.I):
             list_name += ' List'
             
-        text = 'Added ' + 'and'.join(items) + ' to the ' + list_name
+        text = 'Added ' + ' and '.join(items) + ' to the ' + list_name
         
         self.terminate_feedback(hermes, intent_message, text)
 
