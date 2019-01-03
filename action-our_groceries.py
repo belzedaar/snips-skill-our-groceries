@@ -3,7 +3,7 @@
 
 from hermes_python.hermes import Hermes
 import os
-from ourgroceriesclient import OurGroceriesClient
+from ourgroceriesclient import ourgroceriesclient
 from snipshelpers.thread_handler import ThreadHandler
 from snipshelpers.config_parser import SnipsConfigParser
 import Queue
@@ -38,7 +38,7 @@ class Skill_OurGroceries:
                     code = None
         if username is None or password is None:
             print('No configuration')
-        self.client = OurGroceriesClient(username, password)
+        self.client = ourgroceriesclient.OurGroceriesClient(username, password)
         self.queue = Queue.Queue()
         self.thread_handler = ThreadHandler()
         self.thread_handler.run(target=self.start_blocking)
