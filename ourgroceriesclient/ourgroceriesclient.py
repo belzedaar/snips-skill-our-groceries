@@ -18,7 +18,7 @@ class OurGroceriesClient:
         :param username: Our Groceries email 
         :param password: Our Groceries password.
         """
-        self.signedIn = False
+        self.signed_in = False
         self.username = username
         payload = {
             'emailAddress': username, 
@@ -35,16 +35,16 @@ class OurGroceriesClient:
         if r.status_code != 302:
             return
 
-        self.signInCookie =  r.cookies.get_dict()[OurGroceriesClient.cookieName]
+        self.sign_in_cookie =  r.cookies.get_dict()[OurGroceriesClient.cookieName]
         
         r = requests.get(OurGroceriesClient.url, headers=headers, cookies=self.get_cookie())
         match = re.search( r'var g_teamId = "([^"]+)"', r.text)
         if not match:
             return
         
-        self.teamId = match.group(1)
-        self.signedIn = True
-        self.cachedListIds = self.get_list_ids()
+        self.team_id = match.group(1)
+        self.signed_in = True
+        self.cached_list_ids = self.get_list_ids()
         
     def get_overview(self):
         """ Returns the overview - this is your list of lists, and your receipes. """
@@ -88,19 +88,23 @@ class OurGroceriesClient:
 
     def add_item_to_list_by_name(self, listName, item, count = None):
         """ Adds an item to a list, looking up the list Id by name """
-        return self.add_item_to_list(self.cachedListIds[listName], item, count)
+        return self.add_item_to_list(self.cached_list_ids[listName], item, count)
 
     def delete_all_crossed_off_items(self, listId):
         """ Deletes all the crossed off items from the list"""
         return self.exec_command('deleteAllCrossedOffItems', {'listId': listId, 'version' : ''})
 
-    def delete_item(self, listId, itemId):
+    def delete_item_from_list(self, listId, itemId):
         """ Delete an item from a list. """
         return self.exec_command('deleteItem',  {'listId': listId, 'itemId' : itemId})
 
+    def delete_item_from_list_by_name(self, listName, itemId):
+        """ Delete an item from a list, taking the list name. """
+        return self.exec_command('deleteItem',  {'listId': self.cached_list_ids[listName], 'itemId' : itemId})
+
     def exec_command(self, command, args = None):
         """ Posts a named command. """
-        if not self.signedIn:
+        if not self.signed_in:
             return False
         
         headers = {
@@ -110,7 +114,7 @@ class OurGroceriesClient:
         }
 
         # We always send these args
-        json = { "command": command, "teamId" : self.teamId }
+        json = { "command": command, "teamId" : self.team_id }
         # Add the passed in additional args to the standard ones
         if args:
             json.update(args)
@@ -119,10 +123,10 @@ class OurGroceriesClient:
         return r.json()
         
     def get_cookie(self):
-        return {OurGroceriesClient.cookieName : self.signInCookie}
+        return {OurGroceriesClient.cookieName : self.sign_in_cookie}
 
 if __name__ == "__main__":
     client = OurGroceriesClient(sys.argv[1], sys.argv[2])
-    print(client.cachedListIds)
+    print(client.cached_list_ids)
     print(client.add_item_to_list_by_name("Shopping List", "Apples"))
 
