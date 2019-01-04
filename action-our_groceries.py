@@ -99,14 +99,14 @@ class Skill_OurGroceries:
         active_items = []
         
         for item in items_on_list["list"]["items"]:
-            if item["crossedOff"]:
+            if item.get("crossedOff", False):
                 continue
             active_items.append(item["value"])    
 
         count = len(active_items) 
         
         if count == 0:
-            text = "The " + self.get_list_description(list_name) + " Is empty."
+            text = "The " + self.get_list_description(list_name) + " is empty."
         else:
             text = "Items on the " + self.get_list_description(list_name) + '. '
 
