@@ -96,11 +96,16 @@ class Skill_OurGroceries:
         """ Reads out the specified or deault list """
         list_name = self.extract_list(intent_message)
         items_on_list = self.client.get_list_by_name(list_name)        
-        text = "Items on the " + self.get_list_description(list_name) + '. '
-        for item in items_on_list["list"]["items"]:
-            value = item["value"]
-            text += self.get_item_description(value)
-            text += '. '
+        count = len(items_on_list["list"]["items"])        
+        if count == 0:
+            text = "The " + self.get_list_description(list_name) + " Is empty."
+        else:
+            text = "Items on the " + self.get_list_description(list_name) + '. '
+
+            for item in items_on_list["list"]["items"]:
+                value = item["value"]
+                text += self.get_item_description(value)
+                text += '. '
 
         self.terminate_feedback(hermes, intent_message, text)
 
