@@ -3,6 +3,7 @@ hermes-python>=0.1
 
 requests
 inflect
+python-Levenshtein
 fuzzywuzzy
 
 
