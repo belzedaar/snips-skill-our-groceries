@@ -91,7 +91,7 @@ class Skill_OurGroceries:
             for item in items:
                 self.client.add_item_to_list_by_name(list_name, item)
         
-        text = 'Added ' + ' and '.join(items) + ' to the ' + self.get_list_description(list_name)
+        text = 'Added ' + self.get_item_set_description(items) + ' to the ' + self.get_list_description(list_name)
         
         self.terminate_feedback(hermes, intent_message, text)
 
@@ -111,10 +111,10 @@ class Skill_OurGroceries:
 
         text = ""
         if len(removed) != 0:
-            text += 'Removed ' + ' and '.join(removed) + ' from the ' + self.get_list_description(list_name)
+            text += 'Removed ' + self.get_item_description(removed) + ' from the ' + self.get_list_description(list_name) + '. '
         if len(not_found) != 0:
-            text += "I couldn't find " +  ' and '.join(not_found) + ' in the ' + self.get_list_description(list_name)
-        
+            text += "I couldn't find " +  self.get_item_set_description(not_found) + ' in the ' + self.get_list_description(list_name) +  '. '
+ 
         self.terminate_feedback(hermes, intent_message, text)
 
     def read_list(self, hermes, intent_message):
@@ -135,10 +135,8 @@ class Skill_OurGroceries:
         else:
             text = "Items on the " + self.get_list_description(list_name) + '. '
 
-            for item in active_items:
-                text += self.get_item_description(item)
-                text += '. '
-
+            text += self.get_item_set_description(active_items)
+        
         self.terminate_feedback(hermes, intent_message, text)
 
     def get_list_description(self, list_name):
@@ -158,6 +156,18 @@ class Skill_OurGroceries:
         plural = self.inflect_engine.plural(match.group(1))
         return match.group(2) + " " + match.group(1)
 
+    def get_item_set_description(self, item_set):
+        """ Returns a speakable version of a list of items"""
+        text = ""
+        count = len(item_set)
+        for idx, item in enumerate(item_set):
+            text += self.get_item_description(item)
+            if idx == count - 2:
+                text += ', and '
+            else:
+                text += ', '
+
+        return text
 
     ####    section -> feedback reply // future function
     def terminate_feedback(self, hermes, intent_message, text=""):
