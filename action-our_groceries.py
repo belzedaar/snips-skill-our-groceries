@@ -80,8 +80,11 @@ class Skill_OurGroceries:
             self.queue.put(self.add_to_list(hermes, intent_message))
         if intent_name == "readList":
             self.queue.put(self.read_list(hermes, intent_message))
+        if intent_name == "removeFromList":
+            self.queue.put(self.remove_from_list(hermes, intent_message))
 
     def add_to_list(self, hermes, intent_message):
+        """ Handles addToList intent"""
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
         if len(items) > 0:
@@ -89,6 +92,28 @@ class Skill_OurGroceries:
                 self.client.add_item_to_list_by_name(list_name, item)
         
         text = 'Added ' + ' and '.join(items) + ' to the ' + self.get_list_description(list_name)
+        
+        self.terminate_feedback(hermes, intent_message, text)
+
+    def remove_from_list(self, hermes, intent_message):
+        """ Handles the removeFromList intent """
+        items = self.extract_items(intent_message)
+        list_name = self.extract_list(intent_message)
+        removed = []
+        not_found = []
+        if len(items) > 0:
+            for item in items:
+                result = self.client.delete_item_from_list_by_name(list_name, item)
+                if result:
+                    removed.append(item)
+                else:
+                    not_found.append(item)
+
+        text = ""
+        if len(removed) != 0:
+            text += 'Removed ' + ' and '.join(removed) + ' from the ' + self.get_list_description(list_name)
+        if len(not_found) != 0:
+            text += "I couldn't find " +  ' and '.join(not_found) + ' in the ' + self.get_list_description(list_name)
         
         self.terminate_feedback(hermes, intent_message, text)
 

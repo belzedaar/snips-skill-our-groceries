@@ -103,9 +103,14 @@ class OurGroceriesClient:
         """ Delete an item from a list. """
         return self.exec_command('deleteItem',  {'listId': listId, 'itemId' : itemId})
 
-    def delete_item_from_list_by_name(self, listName, itemId):
+    def delete_item_from_list_by_name(self, listName, itemName):
         """ Delete an item from a list, taking the list name. """
-        return self.exec_command('deleteItem',  {'listId': self.get_list_id_from_name(listName), 'itemId' : itemId})
+        list_contents = self.get_list_by_name(listName)
+        for item in list_contents["list"]["items"]:
+            if item["value"].lower() == itemName.lower():
+                return self.exec_command('deleteItem',  {'listId': self.get_list_id_from_name(listName), 'itemId' : item["id"]})
+
+        return False
 
     def get_list_id_from_name(self, listName):
         """ Does a fuzzy search to find the closest list from the cache that we can"""
