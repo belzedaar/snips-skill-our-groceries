@@ -77,6 +77,10 @@ class OurGroceriesClient:
         """ Returns a specific list by id"""
         return self.exec_command('getList', {'listId': listId, 'version' : ''})
 
+    def get_list_by_name(self, listName):
+        """ Returns a specific list by name """
+        return self.exec_command('getList', {'listId': self.get_list_id_from_name(listName), 'version' : ''})
+
     def add_item_to_list(self, listId, item, count = None):
         """ Adds an item to a list. Returns item id."""
         if count:

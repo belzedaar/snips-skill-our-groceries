@@ -7,6 +7,7 @@ import re
 from ourgroceriesclient import ourgroceriesclient
 from snipshelpers.thread_handler import ThreadHandler
 from snipshelpers.config_parser import SnipsConfigParser
+import inflect
 import Queue
 
 CONFIGURATION_ENCODING_FORMAT = "utf-8"
@@ -41,6 +42,7 @@ class Skill_OurGroceries:
         self.client = ourgroceriesclient.OurGroceriesClient(username, password)
         self.default_list = config.get('global').get("defaultlist")
         print("Default List is " + self.default_list)
+        self.inflect_engine = inflect.engine()
         self.queue = Queue.Queue()
         self.thread_handler = ThreadHandler()
         self.thread_handler.run(target=self.start_blocking)
@@ -76,22 +78,49 @@ class Skill_OurGroceries:
         intent_name = re.sub(r'^\w+:', '', intent_name)        
         if intent_name == 'addToList':
             self.queue.put(self.add_to_list(hermes, intent_message))
-        
+        if intent_name == "readList":
+            self.queue.put(self.read_list(hermes, intent_message))
+
     def add_to_list(self, hermes, intent_message):
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
         if len(items) > 0:
             for item in items:
                 self.client.add_item_to_list_by_name(list_name, item)
-
-        # if the list name doesn't already end in "list" add it for the purposes
-        # of speaking it
-        if not re.search(' list$', list_name, re.I):
-            list_name += ' List'
-            
-        text = 'Added ' + ' and '.join(items) + ' to the ' + list_name
+        
+        text = 'Added ' + ' and '.join(items) + ' to the ' + self.get_list_description(list_name)
         
         self.terminate_feedback(hermes, intent_message, text)
+
+    def read_list(self, hermes, intent_message):
+        """ Reads out the specified or deault list """
+        list_name = self.extract_list(intent_message)
+        items_on_list = self.client.get_list_by_name(list_name)        
+        text = "Items on the " + self.get_list_description(list_name) + '. '
+        for item in items_on_list["list"]["items"]:
+            value = item["value"]
+            text += self.get_item_description(value)
+            text += '. '
+
+        self.terminate_feedback(hermes, intent_message, text)
+
+    def get_list_description(self, list_name):
+        """Returns list name for speaking """
+        # if the list name doesn't already end in "list" add it for the purposes of speaking it
+        if not re.search(' list$', list_name, re.I):
+            list_name += ' List'
+        
+        return list_name
+
+    def get_item_description(self, item):
+        """ Formats an item name for speaking"""
+        match = re.match(r'(.*) \((\d+)\)', item)
+        if not match:
+            return item
+        
+        plural = self.inflect_engine.plural(match.group(1))
+        return match.group(2) + " " + match.group(1)
+
 
     ####    section -> feedback reply // future function
     def terminate_feedback(self, hermes, intent_message, text=""):
