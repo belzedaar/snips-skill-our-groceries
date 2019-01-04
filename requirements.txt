@@ -1,0 +1,9 @@
+# Bindings for the hermes protocol 
+hermes-python>=0.1
+
+requests
+inflect
+fuzzywuzzy
+
+
+
