@@ -93,7 +93,7 @@ class Skill_OurGroceries:
         self.terminate_feedback(hermes, intent_message, text)
 
     def read_list(self, hermes, intent_message):
-        """ Reads out the specified or deault list """
+        """ Reads out the specified or default list """
         list_name = self.extract_list(intent_message)
         items_on_list = self.client.get_list_by_name(list_name)        
         count = len(items_on_list["list"]["items"])        
