@@ -9,6 +9,8 @@ from snipshelpers.thread_handler import ThreadHandler
 from snipshelpers.config_parser import SnipsConfigParser
 import inflect
 import Queue
+import paho.mqtt.publish as publish
+import json
 
 CONFIGURATION_ENCODING_FORMAT = "utf-8"
 
@@ -18,7 +20,7 @@ MQTT_IP_ADDR = "localhost"
 MQTT_PORT = 1883
 MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
 
-_id = "snips-skill-our-groceries"
+_id = "snips-skill-our-groceries"  
 
 class Skill_OurGroceries:
     def __init__(self):
@@ -46,7 +48,22 @@ class Skill_OurGroceries:
         self.queue = Queue.Queue()
         self.thread_handler = ThreadHandler()
         self.thread_handler.run(target=self.start_blocking)
+        self.inject_personal_data()
         self.thread_handler.start_run_loop()
+        
+    def inject_personal_data(self):
+        """ Uses MQTT to inject the master list and list of lists """
+        print("Injecting Entites")
+        
+        master_list = self.client.get_master_list()
+        operation = {"itemType" : master_list["masterList"], "listName" : self.client.get_list_names()}
+        
+        operations = [["add", operation]]
+        payload = {"operations" : operations}
+
+        publish.single("hermes/injection/perform", json.dumps(payload), hostname=MQTT_IP_ADDR, port=MQTT_PORT)
+        print("Finished Injection")
+
 
     def start_blocking(self, run_event):
         while run_event.is_set():

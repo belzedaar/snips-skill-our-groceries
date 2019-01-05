@@ -5,6 +5,7 @@ requests
 inflect
 python-Levenshtein
 fuzzywuzzy
+paho-mqtt
 
 
 
