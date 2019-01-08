@@ -197,7 +197,16 @@ class Skill_OurGroceries:
 
     def get_item_set_description(self, item_set):
         """ Returns a speakable version of a list of items"""
-        return self.inflect_engine.join(item_set)
+        text = ""
+        count = len(item_set)
+        for idx, item in enumerate(item_set):
+            text += self.get_item_description(item)
+            if idx == count - 2:
+                text += ', and '
+            else:
+                text += ', '
+
+        return text
         
     ####    section -> feedback reply // future function
     def terminate_feedback(self, hermes, intent_message, text=""):
