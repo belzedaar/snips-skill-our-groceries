@@ -2,6 +2,11 @@
 
 VENV=venv
 
+if [ ! -e "./config.ini" ]
+then
+    cp config.ini.default config.ini
+fi
+
 if [ ! -d "$VENV" ]
 then
 
