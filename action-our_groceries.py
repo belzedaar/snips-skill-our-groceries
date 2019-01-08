@@ -99,6 +99,8 @@ class Skill_OurGroceries:
             self.queue.put(self.read_list(hermes, intent_message))
         if intent_name == "removeFromList":
             self.queue.put(self.remove_from_list(hermes, intent_message))
+        if intent_name == "listQuery":
+            self.queue.put(self.list_query(hermes, intent_message))
 
     def add_to_list(self, hermes, intent_message):
         """ Handles addToList intent"""
@@ -156,6 +158,19 @@ class Skill_OurGroceries:
         
         self.terminate_feedback(hermes, intent_message, text)
 
+    def list_query(self, hermes, intent_message):
+        """ Handles the listQuery intent """
+        items = self.extract_items(intent_message)
+        list_name = self.extract_list(intent_message)
+        items_on_list = self.client.get_list_by_name(list_name)
+        for item in items_on_list["list"]["items"]:
+            if item.get("crossedOff", False):
+                continue
+            
+        text = ""
+        
+        self.terminate_feedback(hermes, intent_message, text)    
+
     def get_list_description(self, list_name):
         """Returns list name for speaking """
         # if the list name doesn't already end in "list" add it for the purposes of speaking it
@@ -170,22 +185,20 @@ class Skill_OurGroceries:
         if not match:
             return item
         
-        plural = self.inflect_engine.plural(match.group(1))
-        return match.group(2) + " " + match.group(1)
+        # make sure if the thing has a number, that we treat it as plural
+        item_text = match.group(1)
+        singular = self.inflect_engine.singular_noun(item_text)
+        # singular_noun returns False if it's already singular
+        if singular == False:
+            plural = self.inflect_engine.plural_noun(item_text)            
+        else:
+            plural = item_text
+        return match.group(2) + " " + plural
 
     def get_item_set_description(self, item_set):
         """ Returns a speakable version of a list of items"""
-        text = ""
-        count = len(item_set)
-        for idx, item in enumerate(item_set):
-            text += self.get_item_description(item)
-            if idx == count - 2:
-                text += ', and '
-            else:
-                text += ', '
-
-        return text
-
+        return self.inflect_engine.join(item_set)
+        
     ####    section -> feedback reply // future function
     def terminate_feedback(self, hermes, intent_message, text=""):
         hermes.publish_end_session(intent_message.session_id, text)
