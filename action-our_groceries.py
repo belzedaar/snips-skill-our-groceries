@@ -1,12 +1,11 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
+from snipsTools import SnipsConfigParser
 from hermes_python.hermes import Hermes
 import os
 import re
 from ourgroceriesclient import ourgroceriesclient
-from snipshelpers.thread_handler import ThreadHandler
-from snipshelpers.config_parser import SnipsConfigParser
 import inflect
 import Queue
 import paho.mqtt.publish as publish
@@ -45,11 +44,8 @@ class Skill_OurGroceries:
         self.default_list = config.get('global').get("defaultlist")
         print("Default List is " + self.default_list)
         self.inflect_engine = inflect.engine()
-        self.queue = Queue.Queue()
-        self.thread_handler = ThreadHandler()
-        self.thread_handler.run(target=self.start_blocking)
         self.inject_personal_data()
-        self.thread_handler.start_run_loop()
+        self.start_blocking()
         
     def inject_personal_data(self):
         """ Uses MQTT to inject the master list and list of lists """
@@ -63,15 +59,6 @@ class Skill_OurGroceries:
 
         publish.single("hermes/injection/perform", json.dumps(payload), hostname=MQTT_IP_ADDR, port=MQTT_PORT)
         print("Finished Injection")
-
-
-    def start_blocking(self, run_event):
-        while run_event.is_set():
-            try:
-                self.queue.get(False)
-            except Queue.Empty:
-                with Hermes(MQTT_ADDR) as h:
-                    h.subscribe_intents(self.callback).start()
 
     ####    section -> extraction of slot value
     def extract_items(self, intent_message):
@@ -94,13 +81,18 @@ class Skill_OurGroceries:
         # strip off any user specific prefix
         intent_name = re.sub(r'^\w+:', '', intent_name)        
         if intent_name == 'addToList':
-            self.queue.put(self.add_to_list(hermes, intent_message))
+            self.add_to_list(hermes, intent_message)
         if intent_name == "readList":
-            self.queue.put(self.read_list(hermes, intent_message))
+            self.read_list(hermes, intent_message)
         if intent_name == "removeFromList":
-            self.queue.put(self.remove_from_list(hermes, intent_message))
+            self.remove_from_list(hermes, intent_message)
         if intent_name == "listQuery":
-            self.queue.put(self.list_query(hermes, intent_message))
+            self.list_query(hermes, intent_message)
+
+    # --> Register callback function and start MQTT
+    def start_blocking(self):
+        with Hermes(MQTT_ADDR) as h:
+            h.subscribe_intents(self.callback).start()
 
     def add_to_list(self, hermes, intent_message):
         """ Handles addToList intent"""
