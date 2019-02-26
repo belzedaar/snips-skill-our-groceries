@@ -7,7 +7,7 @@ import os
 import re
 from ourgroceriesclient import ourgroceriesclient
 import inflect
-import Queue
+import queue
 import paho.mqtt.publish as publish
 import json
 
