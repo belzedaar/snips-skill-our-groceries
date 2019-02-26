@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from snipsTools import SnipsConfigParser
@@ -144,7 +144,7 @@ class Skill_OurGroceries:
         if count == 0:
             text = "The " + self.get_list_description(list_name) + " is empty."
         else:
-            text = "Items on the " + self.get_list_description(list_name) + '. '
+            text = "Items on the " + self.get_list_description(list_name) + ': '
 
             text += self.get_item_set_description(active_items)
         
