@@ -63,15 +63,21 @@ class Skill_OurGroceries:
     ####    section -> extraction of slot value
     def extract_items(self, intent_message):
         items = []
-        if intent_message.slots.itemType:
-            for item in intent_message.slots.itemType.all():
-                items.append(item.value)
+        try:
+            if intent_message.slots.itemType:
+                for item in intent_message.slots.itemType.all():
+                    items.append(item.value)
+        except AttributeError:
+            pass
         return items
 
     def extract_list(self, intent_message):
-        if intent_message.slots.listName:
-            for list_name in intent_message.slots.listName.all():
-                return list_name.value
+        try:
+            if intent_message.slots.listName:
+                for list_name in intent_message.slots.listName.all():
+                    return list_name.value
+        except AttributeError:
+            pass
         return self.default_list
     
     ####    section -> handlers of intents
