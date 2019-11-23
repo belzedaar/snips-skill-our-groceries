@@ -106,6 +106,9 @@ class Skill_OurGroceries:
         list_name = self.extract_list(intent_message)
         if len(items) > 0:
             for item in items:
+                if item == "nothing":
+                    self.terminate_feedback(hermes, intent_message, "Ok, sorry.")
+                    return
                 self.client.add_item_to_list_by_name(list_name, item)
         
         text = 'Added ' + self.get_item_set_description(items) + ' to the ' + self.get_list_description(list_name)
