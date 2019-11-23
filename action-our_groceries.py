@@ -130,7 +130,7 @@ class Skill_OurGroceries:
         if len(removed) != 0:
             text += 'Removed ' + self.get_item_set_description(removed) + ' from the ' + self.get_list_description(list_name) + '. '
         if len(not_found) != 0:
-            text += "I couldn't find " +  self.get_item_set_description(not_found) + ' in the ' + self.get_list_description(list_name) +  '. '
+            text += "I could not find " +  self.get_item_set_description(not_found) + ' in the ' + self.get_list_description(list_name) +  '. '
  
         self.terminate_feedback(hermes, intent_message, text)
 
