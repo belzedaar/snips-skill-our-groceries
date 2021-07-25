@@ -2,20 +2,23 @@
 # -*- coding: utf-8 -*-
 
 from snipsTools import SnipsConfigParser
-from hermes_python.hermes import Hermes
+#from hermes_python.hermes import Hermes
 import os
 import re
 from ourgroceriesclient import ourgroceriesclient
 import inflect
 import queue
 import paho.mqtt.publish as publish
+import paho.mqtt.client as mqtt
+from types import SimpleNamespace
+
 import json
 
 CONFIGURATION_ENCODING_FORMAT = "utf-8"
 
 CONFIG_INI =  "config.ini"
 
-MQTT_IP_ADDR = "localhost"
+MQTT_IP_ADDR = "192.168.86.2"
 MQTT_PORT = 1883
 MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
 
@@ -49,16 +52,16 @@ class Skill_OurGroceries:
         
     def inject_personal_data(self):
         """ Uses MQTT to inject the master list and list of lists """
-        print("Injecting Entites")
+        #print("Injecting Entites")
         
-        master_list = self.client.get_master_list()
-        operation = {"itemType" : master_list["masterList"], "listName" : self.client.get_list_names()}
+        #master_list = self.client.get_master_list()
+        #operation = {"itemType" : master_list["masterList"], "listName" : self.client.get_list_names()}
         
-        operations = [["add", operation]]
-        payload = {"operations" : operations}
+        #operations = [["add", operation]]
+        #payload = {"operations" : operations}
 
-        publish.single("hermes/injection/perform", json.dumps(payload), hostname=MQTT_IP_ADDR, port=MQTT_PORT)
-        print("Finished Injection")
+        #publish.single("hermes/injection/perform", json.dumps(payload), hostname=MQTT_IP_ADDR, port=MQTT_PORT)
+        #print("Finished Injection")
 
     ####    section -> extraction of slot value
     def extract_items(self, intent_message):
@@ -81,7 +84,7 @@ class Skill_OurGroceries:
         return self.default_list
     
     ####    section -> handlers of intents
-    def callback(self, hermes, intent_message):
+    def handle(self, hermes, intent_message):
         print("[OurGroceries] Received")
         intent_name = intent_message.intent.intent_name
         # strip off any user specific prefix
@@ -95,11 +98,41 @@ class Skill_OurGroceries:
         if intent_name == "listQuery":
             self.list_query(hermes, intent_message)
 
+    def on_connect(self, client, userdata, flags, rc):
+        """Called when connected to MQTT broker."""
+        client.subscribe("hermes/intent/#")
+        client.subscribe("hermes/nlu/intentNotRecognized")
+        print("Connected. Waiting for intents.")
+
+
+    def on_disconnect(self, client, userdata, flags, rc):
+        """Called when disconnected from MQTT broker."""
+        client.reconnect()
+
+
+    def on_message(self, client, userdata, msg):
+        """Called each time a message is received on a subscribed topic."""
+        nlu_payload = json.loads(msg.payload)
+        nlu_payload = json.loads(msg.payload, object_hook=lambda d: SimpleNamespace(**d))
+        if msg.topic == "hermes/nlu/intentNotRecognized":
+            sentence = "Unrecognized command!"
+            print("Recognition failure")
+        else:
+            # Intent
+            print("Got intent:", nlu_payload.intent.intentName)
+            self.handle(nlu_payload, client, nlu_payload)
+
+        
     # --> Register callback function and start MQTT
     def start_blocking(self):
-        with Hermes(MQTT_ADDR) as h:
-            h.subscribe_intents(self.callback).start()
+        client = mqtt.Client()
+        client.on_connect = self.on_connect
+        client.on_disconnect = self.on_disconnect
+        client.on_message = self.on_message
 
+        client.connect("192.168.86.2", 1883)
+        client.loop_forever()
+        
     def add_to_list(self, hermes, intent_message):
         """ Handles addToList intent"""
         items = self.extract_items(intent_message)
@@ -213,8 +246,9 @@ class Skill_OurGroceries:
         return text
         
     ####    section -> feedback reply // future function
-    def terminate_feedback(self, hermes, intent_message, text=""):
-        hermes.publish_end_session(intent_message.session_id, text)
+    def terminate_feedback(self, client, text=""):
+        if text != "":
+            client.publish("hermes/tts/say", json.dumps({"text": text}))
 
 if __name__ == "__main__":
     Skill_OurGroceries()
