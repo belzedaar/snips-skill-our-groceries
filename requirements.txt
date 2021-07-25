@@ -6,6 +6,7 @@ inflect
 python-Levenshtein
 fuzzywuzzy
 paho-mqtt
+ourgroceries
 
 
 
