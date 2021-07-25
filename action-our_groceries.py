@@ -5,7 +5,6 @@ from snipsTools import SnipsConfigParser
 #from hermes_python.hermes import Hermes
 import os
 import re
-from ourgroceriesclient import ourgroceriesclient
 import inflect
 import queue
 import paho.mqtt.publish as publish
@@ -13,6 +12,8 @@ import paho.mqtt.client as mqtt
 from types import SimpleNamespace
 
 import json
+import asyncio
+from ourgroceries import OurGroceries
 
 CONFIGURATION_ENCODING_FORMAT = "utf-8"
 
@@ -43,7 +44,9 @@ class Skill_OurGroceries:
                     code = None
         if username is None or password is None:
             print('Bad configuration')
-        self.client = ourgroceriesclient.OurGroceriesClient(username, password)
+        self.loop = asyncio.get_event_loop()
+        self.og = OurGroceries(username, password)
+        self.loop.run_until_complete(self.og.login())
         self.default_list = config.get('global').get("defaultlist")
         print("Default List is " + self.default_list)
         self.inflect_engine = inflect.engine()
@@ -52,10 +55,19 @@ class Skill_OurGroceries:
         
     def inject_personal_data(self):
         """ Uses MQTT to inject the master list and list of lists """
-        #print("Injecting Entites")
+        print("Injecting Entites")
+        #my_lists = self.loop.run_until_complete(self.og.get_my_lists())
+        #master_list_id = my_lists["masterListId"]
         
-        #master_list = self.client.get_master_list()
-        #operation = {"itemType" : master_list["masterList"], "listName" : self.client.get_list_names()}
+        #master_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id=master_list_id))
+        #master_list_items = [x["value"] for x in master_list_contents["list"]["items"]]
+
+        #list_names = [x['name'] for x in my_lists['shoppingLists']]
+
+        # while we are in here, store a mapping from name to ID for use later
+        #self.list_name_to_id = { x['name'] : x['id'] for x in my_lists['shoppingLists']}
+        
+        #operation = {"itemType" : master_list_items, "listName" : list_names}
         
         #operations = [["add", operation]]
         #payload = {"operations" : operations}
@@ -137,6 +149,7 @@ class Skill_OurGroceries:
         """ Handles addToList intent"""
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
+        list_id = self.list_name_to_id[list_name]
         if len(items) > 0:
             for item in items:
                 if item == "nothing":
@@ -145,7 +158,8 @@ class Skill_OurGroceries:
                 if item == "unknownword":
                     self.terminate_feedback(hermes, intent_message, "I do not recognize that item")
                     return
-                self.client.add_item_to_list_by_name(list_name, item)
+                
+                self.loop.run_until_complete(self.og.add_item_to_list(list_id, item))
         
         text = 'Added ' + self.get_item_set_description(items) + ' to the ' + self.get_list_description(list_name)
         
@@ -155,12 +169,16 @@ class Skill_OurGroceries:
         """ Handles the removeFromList intent """
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
+        list_id = self.list_name_to_id[list_name]
         removed = []
         not_found = []
+        current_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id))
+        current_list_name_to_id = {x["value"] : x["id"] for x in current_list_contents["list"]["items"]}
         if len(items) > 0:
             for item in items:
-                result = self.client.delete_item_from_list_by_name(list_name, item)
-                if result:
+                if item in current_list_name_to_id:
+                    item_id = current_list_name_to_id[item]
+                    self.loop.run_until_complete(self.og.remove_item_from_list(list_id, item_id))
                     removed.append(item)
                 else:
                     not_found.append(item)
@@ -176,7 +194,8 @@ class Skill_OurGroceries:
     def read_list(self, hermes, intent_message):
         """ Reads out the specified or default list """
         list_name = self.extract_list(intent_message)
-        items_on_list = self.client.get_list_by_name(list_name)        
+        list_id = self.list_name_to_id[list_name]
+        items_on_list = self.loop.run_until_complete(self.og.get_list_items(list_id))
         active_items = []
         
         for item in items_on_list["list"]["items"]:
@@ -199,12 +218,33 @@ class Skill_OurGroceries:
         """ Handles the listQuery intent """
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
-        items_on_list = self.client.get_list_by_name(list_name)
+        list_id = self.list_name_to_id[list_name]
+        items_on_list = self.loop.run_until_complete(self.og.get_list_items(list_id))
+        names = []
         for item in items_on_list["list"]["items"]:
             if item.get("crossedOff", False):
                 continue
-            
+            names.add(item["value"])
+
+        found = []
+        not_found = []
+        for query in items:
+            if query in names:
+                found.add(query)
+            else:
+                not_found.add(query)
+
         text = ""
+        if len(found) > 0:
+            if len(found) >= 2:
+                text += self.get_item_set_description(found) + " are on the list. "
+            else:
+                text += self.get_item_set_description(found) + " is not on the list. "
+        if len(not_found) > 0:
+            if len(not_found) >= 2:
+                text += self.get_item_set_description(not_found) + " are not the list. "
+            else:
+                text += self.get_item_set_description(not_found) + " is on the list. "
         
         self.terminate_feedback(hermes, intent_message, text)    
 
