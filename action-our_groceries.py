@@ -56,16 +56,16 @@ class Skill_OurGroceries:
     def inject_personal_data(self):
         """ Uses MQTT to inject the master list and list of lists """
         print("Injecting Entites")
-        #my_lists = self.loop.run_until_complete(self.og.get_my_lists())
-        #master_list_id = my_lists["masterListId"]
+        my_lists = self.loop.run_until_complete(self.og.get_my_lists())
+        master_list_id = my_lists["masterListId"]
         
-        #master_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id=master_list_id))
-        #master_list_items = [x["value"] for x in master_list_contents["list"]["items"]]
+        master_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id=master_list_id))
+        master_list_items = [x["value"] for x in master_list_contents["list"]["items"]]
 
-        #list_names = [x['name'] for x in my_lists['shoppingLists']]
+        list_names = [x['name'] for x in my_lists['shoppingLists']]
 
         # while we are in here, store a mapping from name to ID for use later
-        #self.list_name_to_id = { x['name'] : x['id'] for x in my_lists['shoppingLists']}
+        self.list_name_to_id = { x['name'] : x['id'] for x in my_lists['shoppingLists']}
         
         #operation = {"itemType" : master_list_items, "listName" : list_names}
         
@@ -79,36 +79,36 @@ class Skill_OurGroceries:
     def extract_items(self, intent_message):
         items = []
         try:
-            if intent_message.slots.itemType:
-                for item in intent_message.slots.itemType.all():
-                    items.append(item.value)
+            for entity in intent_message.slots:
+                if entity.entity == "items":
+                    items.append(entity.value.value)        
         except AttributeError:
             pass
         return items
 
     def extract_list(self, intent_message):
         try:
-            if intent_message.slots.listName:
-                for list_name in intent_message.slots.listName.all():
-                    return list_name.value
+            for entity in intent_message.slots:
+                if entity.entity == "list":
+                    return entity.value.value
         except AttributeError:
             pass
         return self.default_list
     
     ####    section -> handlers of intents
-    def handle(self, hermes, intent_message):
+    def handle(self, client, intent_message):
         print("[OurGroceries] Received")
-        intent_name = intent_message.intent.intent_name
+        intent_name = intent_message.intent.intentName
         # strip off any user specific prefix
         intent_name = re.sub(r'^\w+:', '', intent_name)        
         if intent_name == 'addToList':
-            self.add_to_list(hermes, intent_message)
+            self.add_to_list(client, intent_message)
         if intent_name == "readList":
-            self.read_list(hermes, intent_message)
+            self.read_list(client, intent_message)
         if intent_name == "removeFromList":
-            self.remove_from_list(hermes, intent_message)
+            self.remove_from_list(client, intent_message)
         if intent_name == "listQuery":
-            self.list_query(hermes, intent_message)
+            self.list_query(client, intent_message)
 
     def on_connect(self, client, userdata, flags, rc):
         """Called when connected to MQTT broker."""
@@ -132,7 +132,7 @@ class Skill_OurGroceries:
         else:
             # Intent
             print("Got intent:", nlu_payload.intent.intentName)
-            self.handle(nlu_payload, client, nlu_payload)
+            self.handle(client, nlu_payload)
 
         
     # --> Register callback function and start MQTT
@@ -145,7 +145,7 @@ class Skill_OurGroceries:
         client.connect("192.168.86.2", 1883)
         client.loop_forever()
         
-    def add_to_list(self, hermes, intent_message):
+    def add_to_list(self, client, intent_message):
         """ Handles addToList intent"""
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
@@ -153,19 +153,19 @@ class Skill_OurGroceries:
         if len(items) > 0:
             for item in items:
                 if item == "nothing":
-                    self.terminate_feedback(hermes, intent_message, "Ok, sorry.")
+                    self.terminate_feedback(client, intent_message, "Ok, sorry.")
                     return
                 if item == "unknownword":
-                    self.terminate_feedback(hermes, intent_message, "I do not recognize that item")
+                    self.terminate_feedback(client, intent_message, "I do not recognize that item")
                     return
                 
                 self.loop.run_until_complete(self.og.add_item_to_list(list_id, item))
         
         text = 'Added ' + self.get_item_set_description(items) + ' to the ' + self.get_list_description(list_name)
         
-        self.terminate_feedback(hermes, intent_message, text)
+        self.terminate_feedback(client, intent_message, text)
 
-    def remove_from_list(self, hermes, intent_message):
+    def remove_from_list(self, client, intent_message):
         """ Handles the removeFromList intent """
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
@@ -189,9 +189,9 @@ class Skill_OurGroceries:
         if len(not_found) != 0:
             text += "I could not find " +  self.get_item_set_description(not_found) + ' in the ' + self.get_list_description(list_name) +  '. '
  
-        self.terminate_feedback(hermes, intent_message, text)
+        self.terminate_feedback(client, intent_message, text)
 
-    def read_list(self, hermes, intent_message):
+    def read_list(self, client, intent_message):
         """ Reads out the specified or default list """
         list_name = self.extract_list(intent_message)
         list_id = self.list_name_to_id[list_name]
@@ -212,9 +212,9 @@ class Skill_OurGroceries:
 
             text += self.get_item_set_description(active_items)
         
-        self.terminate_feedback(hermes, intent_message, text)
+        self.terminate_feedback(client, intent_message, text)
 
-    def list_query(self, hermes, intent_message):
+    def list_query(self, client, intent_message):
         """ Handles the listQuery intent """
         items = self.extract_items(intent_message)
         list_name = self.extract_list(intent_message)
@@ -246,7 +246,7 @@ class Skill_OurGroceries:
             else:
                 text += self.get_item_set_description(not_found) + " is on the list. "
         
-        self.terminate_feedback(hermes, intent_message, text)    
+        self.terminate_feedback(client, intent_message, text)    
 
     def get_list_description(self, list_name):
         """Returns list name for speaking """
@@ -286,7 +286,8 @@ class Skill_OurGroceries:
         return text
         
     ####    section -> feedback reply // future function
-    def terminate_feedback(self, client, text=""):
+    def terminate_feedback(self, client, intentMessage, text=""):
+        print(text)
         if text != "":
             client.publish("hermes/tts/say", json.dumps({"text": text}))
 
