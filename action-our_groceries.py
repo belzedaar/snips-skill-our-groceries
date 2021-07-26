@@ -124,8 +124,12 @@ class Skill_OurGroceries:
 
     def on_message(self, client, userdata, msg):
         """Called each time a message is received on a subscribed topic."""
-        nlu_payload = json.loads(msg.payload)
-        nlu_payload = json.loads(msg.payload, object_hook=lambda d: SimpleNamespace(**d))
+        try:
+            payloadStr = msg.payload.decode('utf-8')
+        except (UnicodeDecodeError, AttributeError):
+            payloadStr = msg.payload
+
+        nlu_payload = json.loads(payloadStr, object_hook=lambda d: SimpleNamespace(**d))
         if msg.topic == "hermes/nlu/intentNotRecognized":
             sentence = "Unrecognized command!"
             print("Recognition failure")

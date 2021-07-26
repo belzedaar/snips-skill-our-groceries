@@ -1,6 +1,3 @@
-# Bindings for the hermes protocol 
-hermes-python>=0.3.2
-
 requests
 inflect
 python-Levenshtein
