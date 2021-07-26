@@ -50,30 +50,30 @@ class Skill_OurGroceries:
         self.default_list = config.get('global').get("defaultlist")
         print("Default List is " + self.default_list)
         self.inflect_engine = inflect.engine()
-        self.inject_personal_data()
+        self.get_list_map()
         self.start_blocking()
         
-    def inject_personal_data(self):
+    def get_list_map(self):
         """ Uses MQTT to inject the master list and list of lists """
-        print("Injecting Entites")
+        #print("Injecting Entites")
         my_lists = self.loop.run_until_complete(self.og.get_my_lists())
-        master_list_id = my_lists["masterListId"]
-        
-        master_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id=master_list_id))
-        master_list_items = [x["value"] for x in master_list_contents["list"]["items"]]
-
+       
         list_names = [x['name'] for x in my_lists['shoppingLists']]
 
         # while we are in here, store a mapping from name to ID for use later
         self.list_name_to_id = { x['name'] : x['id'] for x in my_lists['shoppingLists']}
-        
-        #operation = {"itemType" : master_list_items, "listName" : list_names}
-        
-        #operations = [["add", operation]]
-        #payload = {"operations" : operations}
 
-        #publish.single("hermes/injection/perform", json.dumps(payload), hostname=MQTT_IP_ADDR, port=MQTT_PORT)
-        #print("Finished Injection")
+        #master_list_id = my_lists["masterListId"]
+        
+        #master_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id=master_list_id))
+        #master_list_items = [x["value"] for x in master_list_contents["list"]["items"]]
+
+        #f = open("masterlist.txt", "w")
+        #for m in master_list_items:
+        #    f.write(m)
+        #    f.write("\n")
+        #f.close()
+        
 
     ####    section -> extraction of slot value
     def extract_items(self, intent_message):
