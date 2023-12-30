@@ -10,6 +10,7 @@ import queue
 import paho.mqtt.publish as publish
 import paho.mqtt.client as mqtt
 from types import SimpleNamespace
+from pprint import pprint
 
 import json
 import asyncio
@@ -31,23 +32,32 @@ class Skill_OurGroceries:
         password = None        
         self.mqtt_addr = "127.0.0.1"
         self.mqtt_port = 1883
+        self.verbose = False
 
-        if config and config.get('secret', None) is not None:
-            if config.get('secret').get('username', None) is not None:
-                username = config.get('secret').get('username')
-                if username == "":
-                    username = None
-            if config.get('secret').get('password', None) is not None:
-                password = config.get('secret').get('password')
-                if password == "":
-                    code = None
-        
-        if config and config.get('MQTT', None) is not None:
-            self.mqtt_addr = config.get('MQTT').get('hostname', self.mqtt_addr)
-            self.mqtt_port = config.get('MQTT').get('port', self.mqtt_port)
+        if config:
+            if config.get('secret', None) is not None:
+                if config.get('secret').get('username', None) is not None:
+                    username = config.get('secret').get('username')
+                    if username == "":
+                        username = None
+                if config.get('secret').get('password', None) is not None:
+                    password = config.get('secret').get('password')
+                    if password == "":
+                        code = None
+            
+            if config.get('MQTT', None) is not None:
+                self.mqtt_addr = config.get('MQTT').get('hostname', self.mqtt_addr)
+                self.mqtt_port = config.get('MQTT').get('port', self.mqtt_port)
 
+            if config.get('debug', None) is not None:
+                self.verbose = config.get('debug').get('verbose', self.verbose)
+            
         if username is None or password is None:
             print('Bad configuration')
+        
+        if self.verbose:
+            print("Verbose Logging Enabled")
+
         self.loop = asyncio.get_event_loop()
         self.og = OurGroceries(username, password)
         self.loop.run_until_complete(self.og.login())
@@ -58,25 +68,12 @@ class Skill_OurGroceries:
         self.start_blocking()
         
     def get_list_map(self):
-        """ Uses MQTT to inject the master list and list of lists """
-        #print("Injecting Entites")
         my_lists = self.loop.run_until_complete(self.og.get_my_lists())
        
         list_names = [x['name'] for x in my_lists['shoppingLists']]
 
         # while we are in here, store a mapping from name to ID for use later
         self.list_name_to_id = { x['name'] : x['id'] for x in my_lists['shoppingLists']}
-
-        #master_list_id = my_lists["masterListId"]
-        
-        #master_list_contents = self.loop.run_until_complete(self.og.get_list_items(list_id=master_list_id))
-        #master_list_items = [x["value"] for x in master_list_contents["list"]["items"]]
-
-        #f = open("masterlist.txt", "w")
-        #for m in master_list_items:
-        #    f.write(m)
-        #    f.write("\n")
-        #f.close()
         
 
     ####    section -> extraction of slot value
@@ -84,7 +81,7 @@ class Skill_OurGroceries:
         items = []
         try:
             for entity in intent_message.slots:
-                if entity.entity == "items":
+                if entity.slotName == "items":
                     items.append(entity.value.value)        
         except AttributeError:
             pass
@@ -93,7 +90,7 @@ class Skill_OurGroceries:
     def extract_list(self, intent_message):
         try:
             for entity in intent_message.slots:
-                if entity.entity == "list":
+                if entity.slotName == "list":
                     return entity.value.value
         except AttributeError:
             pass
@@ -103,6 +100,9 @@ class Skill_OurGroceries:
     def handle(self, client, intent_message):
         print("[OurGroceries] Received")
         intent_name = intent_message.intent.intentName
+        if self.verbose:
+            pprint(intent_message)
+        
         # strip off any user specific prefix
         intent_name = re.sub(r'^\w+:', '', intent_name)        
         if intent_name == 'addToList':
@@ -205,9 +205,13 @@ class Skill_OurGroceries:
         list_id = self.list_name_to_id[list_name]
         items_on_list = self.loop.run_until_complete(self.og.get_list_items(list_id))
         active_items = []
+
+        if self.verbose:
+            print("List Contents")
+            pprint(items_on_list["list"]["items"])
         
         for item in items_on_list["list"]["items"]:
-            if item.get("crossedOff", False):
+            if item.get("crossedOffAt", False):
                 continue
             active_items.append(item["value"])    
 
@@ -230,29 +234,36 @@ class Skill_OurGroceries:
         items_on_list = self.loop.run_until_complete(self.og.get_list_items(list_id))
         names = []
         for item in items_on_list["list"]["items"]:
-            if item.get("crossedOff", False):
+            if item.get("crossedOffAt", False):
                 continue
-            names.add(item["value"])
+            names.append(item["value"].lower())
+
+        if self.verbose:
+            print("Items in List")
+            pprint(names)
 
         found = []
         not_found = []
         for query in items:
+            query = query.lower()
+            if self.verbose:
+                print("Looking for " + query)
             if query in names:
-                found.add(query)
+                found.append(query)
             else:
-                not_found.add(query)
+                not_found.append(query)
 
         text = ""
         if len(found) > 0:
             if len(found) >= 2:
                 text += self.get_item_set_description(found) + " are on the list. "
             else:
-                text += self.get_item_set_description(found) + " is not on the list. "
+                text += self.get_item_set_description(found) + " is on the list. "
         if len(not_found) > 0:
             if len(not_found) >= 2:
                 text += self.get_item_set_description(not_found) + " are not the list. "
             else:
-                text += self.get_item_set_description(not_found) + " is on the list. "
+                text += self.get_item_set_description(not_found) + " is not on the list. "
         
         self.terminate_feedback(client, intent_message, text)    
 
