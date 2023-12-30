@@ -19,7 +19,7 @@ CONFIGURATION_ENCODING_FORMAT = "utf-8"
 
 CONFIG_INI =  "config.ini"
 
-MQTT_IP_ADDR = "192.168.86.2"
+MQTT_IP_ADDR = "127.0.0.1"
 MQTT_PORT = 1883
 MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
 
@@ -42,6 +42,12 @@ class Skill_OurGroceries:
                 password = config.get('secret').get('password')
                 if password == "":
                     code = None
+        
+        if config and config.get('MQTT', None) is not None:
+            if config.get('MQTT').get('hostname', None) is not None:
+                host = config.get('MQTT').get('hostname')
+                MQTT_ADDR = "{}:{}".format(host, str(MQTT_PORT))
+
         if username is None or password is None:
             print('Bad configuration')
         self.loop = asyncio.get_event_loop()

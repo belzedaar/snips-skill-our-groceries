@@ -5,4 +5,5 @@ defaultList=Shopping List
 username=
 password=
 
-
+[MQTT]
+#hostname=127.0.0.1
