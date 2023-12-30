@@ -19,10 +19,6 @@ CONFIGURATION_ENCODING_FORMAT = "utf-8"
 
 CONFIG_INI =  "config.ini"
 
-MQTT_IP_ADDR = "127.0.0.1"
-MQTT_PORT = 1883
-MQTT_ADDR = "{}:{}".format(MQTT_IP_ADDR, str(MQTT_PORT))
-
 _id = "snips-skill-our-groceries"  
 
 class Skill_OurGroceries:
@@ -33,6 +29,9 @@ class Skill_OurGroceries:
             config = None
         username = None
         password = None        
+        self.mqtt_addr = "127.0.0.1"
+        self.mqtt_port = 1883
+
         if config and config.get('secret', None) is not None:
             if config.get('secret').get('username', None) is not None:
                 username = config.get('secret').get('username')
@@ -44,9 +43,8 @@ class Skill_OurGroceries:
                     code = None
         
         if config and config.get('MQTT', None) is not None:
-            if config.get('MQTT').get('hostname', None) is not None:
-                host = config.get('MQTT').get('hostname')
-                MQTT_ADDR = "{}:{}".format(host, str(MQTT_PORT))
+            self.mqtt_addr = config.get('MQTT').get('hostname', self.mqtt_addr)
+            self.mqtt_port = config.get('MQTT').get('port', self.mqtt_port)
 
         if username is None or password is None:
             print('Bad configuration')
@@ -152,7 +150,7 @@ class Skill_OurGroceries:
         client.on_disconnect = self.on_disconnect
         client.on_message = self.on_message
 
-        client.connect("192.168.86.2", 1883)
+        client.connect(self.mqtt_addr, self.mqtt_port)
         client.loop_forever()
         
     def add_to_list(self, client, intent_message):
