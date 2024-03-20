@@ -305,10 +305,10 @@ class Skill_OurGroceries:
         return text
         
     ####    section -> feedback reply // future function
-    def terminate_feedback(self, client, intentMessage, text=""):
+    def terminate_feedback(self, client, intent_message, text=""):
         print(text)
         if text != "":
-            client.publish("hermes/tts/say", json.dumps({"text": text}))
+            client.publish("hermes/tts/say", json.dumps({"text": text, "siteId": intent_message.siteId}))
 
 if __name__ == "__main__":
     Skill_OurGroceries()
